@@ -1,0 +1,695 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Kalkulator — KaiOverCooked</title>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=DM+Sans:wght@300;400&display=swap" rel="stylesheet"/>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --body-bg:    #E4E3DE;
+      --shell:      #DDDCD7;
+      --display:    #1C1C1A;
+      --disp-text:  #F0EFE9;
+      --disp-sub:   #8A8980;
+      --btn-num:    #F5F4F0;
+      --btn-op:     #C8C7C1;
+      --btn-eq:     #2A2A27;
+      --btn-fn:     #BEBDB8;
+      --btn-sci:    #D4D3CE;
+      --shadow-l:   rgba(255,255,255,0.75);
+      --shadow-d:   rgba(0,0,0,0.13);
+      --accent:     #2A2A27;
+      --radius:     18px;
+      --br:         14px;
+      --history-bg: #F5F4F0;
+      --history-border: rgba(0,0,0,0.07);
+    }
+
+    html, body {
+      min-height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: var(--body-bg);
+      font-family: 'DM Sans', sans-serif;
+      padding: 20px 0;
+    }
+
+    .device {
+      width: 340px;
+      background: var(--shell);
+      border-radius: 36px;
+      padding: 20px 18px 22px;
+      box-shadow:
+        8px 8px 20px var(--shadow-d),
+        -4px -4px 12px var(--shadow-l),
+        inset 0 1px 0 rgba(255,255,255,0.6);
+      position: relative;
+    }
+
+    /* Top bar: notch + controls */
+    .top-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 14px;
+      padding: 0 2px;
+    }
+
+    .notch {
+      width: 40px;
+      height: 4px;
+      background: rgba(0,0,0,0.12);
+      border-radius: 2px;
+      margin: 0 auto;
+      position: absolute;
+      left: 50%;
+      transform: translateX(-50%);
+    }
+
+    .controls {
+      display: flex;
+      gap: 8px;
+      margin-left: auto;
+    }
+
+    .ctrl-btn {
+      background: none;
+      border: none;
+      cursor: pointer;
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+      color: rgba(0,0,0,0.35);
+      transition: background 0.15s, color 0.15s;
+      box-shadow: none !important;
+      height: 28px !important;
+    }
+
+    .ctrl-btn:hover { background: rgba(0,0,0,0.07); color: var(--accent); }
+    .ctrl-btn.active { color: var(--accent); }
+
+    /* Display */
+    .display {
+      background: var(--display);
+      border-radius: var(--radius);
+      padding: 16px 20px 14px;
+      margin-bottom: 12px;
+      min-height: 100px;
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-end;
+      align-items: flex-end;
+      position: relative;
+      overflow: hidden;
+      box-shadow: inset 0 2px 8px rgba(0,0,0,0.35), 0 1px 0 rgba(255,255,255,0.4);
+    }
+
+    .display::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(255,255,255,0.015) 2px, rgba(255,255,255,0.015) 3px);
+      pointer-events: none;
+      border-radius: var(--radius);
+    }
+
+    .display-expr {
+      font-family: 'DM Mono', monospace;
+      font-size: 12px;
+      font-weight: 300;
+      color: var(--disp-sub);
+      letter-spacing: 0.03em;
+      min-height: 16px;
+      max-width: 100%;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .display-result {
+      font-family: 'DM Mono', monospace;
+      font-size: 40px;
+      font-weight: 300;
+      color: var(--disp-text);
+      letter-spacing: -0.02em;
+      line-height: 1.1;
+      transition: all 0.15s ease;
+      word-break: break-all;
+      max-width: 100%;
+    }
+
+    .display-result.small  { font-size: 26px; }
+    .display-result.xsmall { font-size: 18px; }
+
+    /* History panel */
+    .history-panel {
+      background: var(--history-bg);
+      border-radius: var(--radius);
+      margin-bottom: 12px;
+      max-height: 0;
+      overflow: hidden;
+      transition: max-height 0.3s ease, padding 0.3s ease;
+    }
+
+    .history-panel.open {
+      max-height: 180px;
+      padding: 10px 14px;
+    }
+
+    .history-title {
+      font-family: 'DM Mono', monospace;
+      font-size: 10px;
+      letter-spacing: 0.1em;
+      color: var(--disp-sub);
+      text-transform: uppercase;
+      margin-bottom: 8px;
+    }
+
+    .history-list {
+      overflow-y: auto;
+      max-height: 140px;
+      display: flex;
+      flex-direction: column-reverse;
+      gap: 4px;
+    }
+
+    .history-item {
+      font-family: 'DM Mono', monospace;
+      font-size: 12px;
+      color: var(--accent);
+      padding: 5px 8px;
+      border-radius: 8px;
+      border-bottom: 1px solid var(--history-border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      cursor: pointer;
+      transition: background 0.1s;
+    }
+
+    .history-item:hover { background: rgba(0,0,0,0.04); }
+    .history-item:last-child { border-bottom: none; }
+
+    .history-expr { color: var(--disp-sub); font-size: 10px; }
+    .history-val  { font-weight: 500; }
+
+    .history-empty {
+      font-family: 'DM Mono', monospace;
+      font-size: 11px;
+      color: var(--disp-sub);
+      text-align: center;
+      padding: 10px 0;
+    }
+
+    /* Mode toggle */
+    .mode-toggle {
+      display: flex;
+      gap: 6px;
+      margin-bottom: 10px;
+    }
+
+    .mode-btn {
+      flex: 1;
+      height: 30px !important;
+      font-family: 'DM Mono', monospace;
+      font-size: 11px;
+      letter-spacing: 0.06em;
+      border: none;
+      border-radius: 10px;
+      cursor: pointer;
+      background: rgba(0,0,0,0.06);
+      color: rgba(0,0,0,0.4);
+      transition: all 0.15s;
+      box-shadow: none !important;
+    }
+
+    .mode-btn.active {
+      background: var(--accent);
+      color: #F0EFE9;
+    }
+
+    /* Button grids */
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 8px;
+    }
+
+    .grid-sci {
+      display: none;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 8px;
+      margin-bottom: 8px;
+    }
+
+    .grid-sci.show { display: grid; }
+
+    button {
+      font-family: 'DM Mono', monospace;
+      font-size: 16px;
+      font-weight: 400;
+      border: none;
+      border-radius: var(--br);
+      height: 58px;
+      cursor: pointer;
+      transition: transform 0.08s ease, box-shadow 0.08s ease, background 0.1s;
+      position: relative;
+      outline: none;
+      -webkit-tap-highlight-color: transparent;
+      user-select: none;
+      letter-spacing: 0.01em;
+      overflow: hidden;
+    }
+
+    .btn-num {
+      background: var(--btn-num);
+      color: var(--accent);
+      box-shadow: 4px 4px 8px var(--shadow-d), -2px -2px 6px var(--shadow-l);
+    }
+
+    .btn-num:active {
+      transform: scale(0.95);
+      box-shadow: 2px 2px 4px var(--shadow-d), -1px -1px 3px var(--shadow-l), inset 1px 1px 3px rgba(0,0,0,0.08);
+    }
+
+    .btn-fn {
+      background: var(--btn-fn);
+      color: var(--accent);
+      font-size: 13px;
+      box-shadow: 4px 4px 8px var(--shadow-d), -2px -2px 6px var(--shadow-l);
+    }
+
+    .btn-fn:active { transform: scale(0.95); box-shadow: inset 1px 1px 3px rgba(0,0,0,0.1); }
+
+    .btn-op {
+      background: var(--btn-op);
+      color: var(--accent);
+      font-size: 20px;
+      box-shadow: 4px 4px 8px var(--shadow-d), -2px -2px 6px var(--shadow-l);
+    }
+
+    .btn-op:active { transform: scale(0.95); box-shadow: inset 1px 1px 3px rgba(0,0,0,0.1); }
+    .btn-op.active { background: var(--accent); color: var(--btn-num); }
+
+    .btn-eq {
+      background: var(--btn-eq);
+      color: #F0EFE9;
+      font-size: 22px;
+      box-shadow: 4px 4px 10px rgba(0,0,0,0.22), -2px -2px 6px var(--shadow-l);
+    }
+
+    .btn-eq:active { transform: scale(0.95); box-shadow: inset 1px 1px 4px rgba(0,0,0,0.2); }
+
+    .btn-sci {
+      background: var(--btn-sci);
+      color: var(--accent);
+      font-size: 12px;
+      box-shadow: 3px 3px 6px var(--shadow-d), -2px -2px 5px var(--shadow-l);
+    }
+
+    .btn-sci:active { transform: scale(0.95); box-shadow: inset 1px 1px 3px rgba(0,0,0,0.1); }
+
+    .span2 {
+      grid-column: span 2;
+      text-align: left;
+      padding-left: 22px;
+    }
+
+    /* Watermark */
+    .watermark {
+      text-align: center;
+      margin-top: 12px;
+      font-family: 'DM Mono', monospace;
+      font-size: 10px;
+      font-weight: 300;
+      letter-spacing: 0.1em;
+      color: rgba(0,0,0,0.2);
+    }
+
+    /* Ripple */
+    .ripple {
+      position: absolute;
+      border-radius: 50%;
+      background: rgba(0,0,0,0.08);
+      animation: ripple-anim 0.35s ease-out forwards;
+      pointer-events: none;
+    }
+
+    @keyframes ripple-anim {
+      from { transform: scale(0); opacity: 1; }
+      to   { transform: scale(3); opacity: 0; }
+    }
+
+    @keyframes flash {
+      0%   { opacity: 0.3; }
+      100% { opacity: 1; }
+    }
+
+    .flash { animation: flash 0.15s ease-out; }
+
+    /* Scrollbar history */
+    .history-list::-webkit-scrollbar { width: 3px; }
+    .history-list::-webkit-scrollbar-track { background: transparent; }
+    .history-list::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.15); border-radius: 2px; }
+  </style>
+</head>
+<body>
+<div class="device">
+
+  <!-- Top bar -->
+  <div class="top-bar">
+    <div class="notch"></div>
+    <div class="controls">
+      <!-- Sound toggle -->
+      <button class="ctrl-btn active" id="soundBtn" title="Suara">🔔</button>
+      <!-- History toggle -->
+      <button class="ctrl-btn" id="historyBtn" title="Riwayat">🕐</button>
+    </div>
+  </div>
+
+  <!-- Display -->
+  <div class="display">
+    <div class="display-expr" id="expr"></div>
+    <div class="display-result" id="result">0</div>
+  </div>
+
+  <!-- History Panel -->
+  <div class="history-panel" id="historyPanel">
+    <div class="history-title">Riwayat</div>
+    <div class="history-list" id="historyList">
+      <div class="history-empty" id="historyEmpty">Belum ada perhitungan</div>
+    </div>
+  </div>
+
+  <!-- Mode toggle -->
+  <div class="mode-toggle">
+    <button class="mode-btn active" id="modeStd" onclick="setMode('standard')">STANDARD</button>
+    <button class="mode-btn" id="modeSci" onclick="setMode('scientific')">SAINTIFIK</button>
+  </div>
+
+  <!-- Scientific row (hidden by default) -->
+  <div class="grid-sci" id="sciGrid">
+    <button class="btn-sci" data-action="sci" data-fn="sin">sin</button>
+    <button class="btn-sci" data-action="sci" data-fn="cos">cos</button>
+    <button class="btn-sci" data-action="sci" data-fn="tan">tan</button>
+    <button class="btn-sci" data-action="sci" data-fn="log">log</button>
+    <button class="btn-sci" data-action="sci" data-fn="ln">ln</button>
+    <button class="btn-sci" data-action="sci" data-fn="sqrt">√</button>
+    <button class="btn-sci" data-action="sci" data-fn="sq">x²</button>
+    <button class="btn-sci" data-action="sci" data-fn="pi">π</button>
+  </div>
+
+  <!-- Standard grid -->
+  <div class="grid">
+    <button class="btn-fn" data-action="clear">AC</button>
+    <button class="btn-fn" data-action="sign">+/−</button>
+    <button class="btn-fn" data-action="percent">%</button>
+    <button class="btn-op" data-action="op" data-op="÷">÷</button>
+
+    <button class="btn-num" data-action="num" data-val="7">7</button>
+    <button class="btn-num" data-action="num" data-val="8">8</button>
+    <button class="btn-num" data-action="num" data-val="9">9</button>
+    <button class="btn-op" data-action="op" data-op="×">×</button>
+
+    <button class="btn-num" data-action="num" data-val="4">4</button>
+    <button class="btn-num" data-action="num" data-val="5">5</button>
+    <button class="btn-num" data-action="num" data-val="6">6</button>
+    <button class="btn-op" data-action="op" data-op="−">−</button>
+
+    <button class="btn-num" data-action="num" data-val="1">1</button>
+    <button class="btn-num" data-action="num" data-val="2">2</button>
+    <button class="btn-num" data-action="num" data-val="3">3</button>
+    <button class="btn-op" data-action="op" data-op="+">+</button>
+
+    <button class="btn-num span2" data-action="num" data-val="0">0</button>
+    <button class="btn-num" data-action="decimal">.</button>
+    <button class="btn-eq" data-action="equals">=</button>
+  </div>
+
+  <div class="watermark">by KaiOverCooked</div>
+</div>
+
+<script>
+  // ── State ──────────────────────────────────────────────
+  const resultEl  = document.getElementById('result');
+  const exprEl    = document.getElementById('expr');
+  const histPanel = document.getElementById('historyPanel');
+  const histList  = document.getElementById('historyList');
+  const histEmpty = document.getElementById('historyEmpty');
+  const soundBtn  = document.getElementById('soundBtn');
+  const histBtn   = document.getElementById('historyBtn');
+
+  let current        = '0';
+  let previous       = '';
+  let operator       = null;
+  let justCalc       = false;
+  let waitingForNext = false;
+  let soundOn        = true;
+  let historyOpen    = false;
+  let history        = [];
+  let sciMode        = false;
+
+  // ── Audio (Web Audio API — no file needed) ─────────────
+  const AudioCtx = window.AudioContext || window.webkitAudioContext;
+  let audioCtx = null;
+
+  function playClick(type = 'num') {
+    if (!soundOn) return;
+    try {
+      if (!audioCtx) audioCtx = new AudioCtx();
+      const osc  = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+      const freq = type === 'eq' ? 880 : type === 'op' ? 660 : type === 'fn' ? 440 : 520;
+      osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+      osc.frequency.exponentialRampToValueAtTime(freq * 0.7, audioCtx.currentTime + 0.06);
+      gain.gain.setValueAtTime(0.12, audioCtx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.08);
+      osc.start(audioCtx.currentTime);
+      osc.stop(audioCtx.currentTime + 0.09);
+    } catch(e) {}
+  }
+
+  // ── Sound toggle ───────────────────────────────────────
+  soundBtn.addEventListener('click', () => {
+    soundOn = !soundOn;
+    soundBtn.textContent = soundOn ? '🔔' : '🔕';
+    soundBtn.classList.toggle('active', soundOn);
+  });
+
+  // ── History toggle ─────────────────────────────────────
+  histBtn.addEventListener('click', () => {
+    historyOpen = !historyOpen;
+    histPanel.classList.toggle('open', historyOpen);
+    histBtn.classList.toggle('active', historyOpen);
+  });
+
+  function addHistory(expr, val) {
+    history.unshift({ expr, val });
+    if (history.length > 20) history.pop();
+    renderHistory();
+  }
+
+  function renderHistory() {
+    if (history.length === 0) {
+      histEmpty.style.display = 'block';
+      histList.querySelectorAll('.history-item').forEach(e => e.remove());
+      return;
+    }
+    histEmpty.style.display = 'none';
+    histList.querySelectorAll('.history-item').forEach(e => e.remove());
+    history.forEach(h => {
+      const item = document.createElement('div');
+      item.className = 'history-item';
+      item.innerHTML = `<span class="history-expr">${h.expr}</span><span class="history-val">${h.val}</span>`;
+      item.addEventListener('click', () => {
+        current = String(h.val);
+        setDisplay(current);
+        justCalc = true;
+      });
+      histList.appendChild(item);
+    });
+  }
+
+  // ── Mode toggle ────────────────────────────────────────
+  function setMode(mode) {
+    sciMode = mode === 'scientific';
+    document.getElementById('sciGrid').classList.toggle('show', sciMode);
+    document.getElementById('modeStd').classList.toggle('active', !sciMode);
+    document.getElementById('modeSci').classList.toggle('active', sciMode);
+  }
+
+  // ── Display ────────────────────────────────────────────
+  function setDisplay(val) {
+    const s = String(val);
+    resultEl.className = 'display-result';
+    if (s.length > 12) resultEl.classList.add('xsmall');
+    else if (s.length > 8) resultEl.classList.add('small');
+    resultEl.textContent = s;
+  }
+
+  function setExpr(val) { exprEl.textContent = val; }
+
+  function flash() {
+    resultEl.classList.remove('flash');
+    void resultEl.offsetWidth;
+    resultEl.classList.add('flash');
+  }
+
+  // ── Math ───────────────────────────────────────────────
+  function toNum(s) { return parseFloat(s); }
+
+  function formatNum(n) {
+    if (isNaN(n)) return 'Error';
+    if (!isFinite(n)) return n > 0 ? '∞' : '-∞';
+    return parseFloat(n.toPrecision(12)).toString();
+  }
+
+  function calculate(a, op, b) {
+    const x = toNum(a), y = toNum(b);
+    switch(op) {
+      case '+': return x + y;
+      case '−': return x - y;
+      case '×': return x * y;
+      case '÷': return y === 0 ? (x === 0 ? NaN : Infinity) : x / y;
+    }
+  }
+
+  function applySci(fn) {
+    const x = toNum(current);
+    let res;
+    const label = { sin:'sin', cos:'cos', tan:'tan', log:'log', ln:'ln', sqrt:'√', sq:'²', pi:'π' };
+    switch(fn) {
+      case 'sin':  res = Math.sin(x * Math.PI / 180); setExpr(`sin(${x}°)`); break;
+      case 'cos':  res = Math.cos(x * Math.PI / 180); setExpr(`cos(${x}°)`); break;
+      case 'tan':  res = Math.tan(x * Math.PI / 180); setExpr(`tan(${x}°)`); break;
+      case 'log':  res = x <= 0 ? NaN : Math.log10(x); setExpr(`log(${x})`); break;
+      case 'ln':   res = x <= 0 ? NaN : Math.log(x);   setExpr(`ln(${x})`);  break;
+      case 'sqrt': res = x < 0  ? NaN : Math.sqrt(x);  setExpr(`√(${x})`);   break;
+      case 'sq':   res = x * x; setExpr(`(${x})²`); break;
+      case 'pi':   res = Math.PI; setExpr('π'); break;
+    }
+    current = formatNum(res);
+    flash(); setDisplay(current);
+    justCalc = true;
+  }
+
+  function highlightOp(op) {
+    document.querySelectorAll('.btn-op').forEach(b => {
+      b.classList.toggle('active', b.dataset.op === op);
+    });
+  }
+
+  // ── Ripple ─────────────────────────────────────────────
+  function addRipple(btn, e) {
+    const r    = btn.getBoundingClientRect();
+    const size = Math.max(r.width, r.height);
+    const x    = (e.clientX || r.left + r.width/2)  - r.left - size/2;
+    const y    = (e.clientY || r.top  + r.height/2) - r.top  - size/2;
+    const rip  = document.createElement('span');
+    rip.className = 'ripple';
+    rip.style.cssText = `width:${size}px;height:${size}px;left:${x}px;top:${y}px;`;
+    btn.appendChild(rip);
+    setTimeout(() => rip.remove(), 400);
+  }
+
+  // ── Button handler ─────────────────────────────────────
+  document.querySelectorAll('button[data-action]').forEach(btn => {
+    btn.addEventListener('click', e => {
+      addRipple(btn, e);
+      const action = btn.dataset.action;
+
+      if (action === 'num') {
+        playClick('num');
+        const val = btn.dataset.val;
+        if (justCalc || waitingForNext) { current = val; justCalc = false; waitingForNext = false; }
+        else current = (current === '0') ? val : current + val;
+        if (current.length > 13) return;
+        setDisplay(current);
+        highlightOp(null);
+
+      } else if (action === 'decimal') {
+        playClick('num');
+        if (justCalc || waitingForNext) { current = '0.'; justCalc = false; waitingForNext = false; }
+        else if (!current.includes('.')) current += '.';
+        setDisplay(current);
+
+      } else if (action === 'clear') {
+        playClick('fn');
+        current = '0'; previous = ''; operator = null; justCalc = false; waitingForNext = false;
+        setDisplay('0'); setExpr(''); highlightOp(null);
+
+      } else if (action === 'sign') {
+        playClick('fn');
+        current = formatNum(-toNum(current));
+        setDisplay(current);
+
+      } else if (action === 'percent') {
+        playClick('fn');
+        current = formatNum(toNum(current) / 100);
+        setDisplay(current);
+
+      } else if (action === 'op') {
+        playClick('op');
+        const op = btn.dataset.op;
+        if (operator && !waitingForNext) {
+          const res = calculate(previous, operator, current);
+          current = formatNum(res); flash();
+          setDisplay(current);
+        }
+        previous = current; operator = op; justCalc = false; waitingForNext = true;
+        setExpr(current + ' ' + op);
+        highlightOp(op);
+
+      } else if (action === 'equals') {
+        if (!operator) return;
+        playClick('eq');
+        const expr = previous + ' ' + operator + ' ' + current;
+        setExpr(expr + ' =');
+        const res = calculate(previous, operator, current);
+        current = formatNum(res);
+        flash(); setDisplay(current);
+        addHistory(expr, current);
+        operator = null; justCalc = true; waitingForNext = false;
+        highlightOp(null);
+
+      } else if (action === 'sci') {
+        playClick('fn');
+        applySci(btn.dataset.fn);
+      }
+    });
+  });
+
+  // ── Keyboard ───────────────────────────────────────────
+  document.addEventListener('keydown', e => {
+    const map = {
+      '0':'0','1':'1','2':'2','3':'3','4':'4',
+      '5':'5','6':'6','7':'7','8':'8','9':'9',
+      '.':'.', ',':'.', 'Enter':'=', '=':'=',
+      '+':'+', '-':'−', '*':'×', '/':'÷',
+      'Backspace':'clear', 'Escape':'clear', '%':'%'
+    };
+    const v = map[e.key];
+    if (!v) return;
+    const selector =
+      ['0','1','2','3','4','5','6','7','8','9'].includes(v) ? `[data-val="${v}"]`
+      : v === '.' ? '[data-action="decimal"]'
+      : v === '=' ? '[data-action="equals"]'
+      : v === 'clear' ? '[data-action="clear"]'
+      : v === '%' ? '[data-action="percent"]'
+      : `[data-op="${v}"]`;
+    const el = document.querySelector(selector);
+    if (el) el.click();
+  });
+</script>
+</body>
+</html>
